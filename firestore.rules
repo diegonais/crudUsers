@@ -13,6 +13,16 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.role == "admin";
     }
 
+    function isActiveCaller() {
+      // get() consulta el perfil del solicitante durante la evaluacion de
+      // reglas. Tiene coste de lectura/reglas, pero aqui priorizamos entender
+      // que active=false bloquea recursos aunque exista un token viejo.
+      return isAuthenticated()
+        && get(
+          /databases/$(database)/documents/user_profiles/$(request.auth.uid)
+        ).data.active == true;
+    }
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
@@ -22,7 +32,9 @@ service cloud.firestore {
       // perfiles para la prueba administrativa de solo lectura de Fase 4.
       // Ocultar botones en Flutter no protege datos: esta regla es quien
       // verifica request.auth.token.role antes de permitir la operacion.
-      allow read: if isOwner(userId) || isAdmin();
+      // El propio perfil sigue legible aun con active=false para que Flutter
+      // pueda detectar la cuenta deshabilitada y mostrar el estado correcto.
+      allow read: if isOwner(userId) || (isActiveCaller() && isAdmin());
 
       // En esta fase no escribimos perfiles desde Flutter. Los documentos
       // iniciales se crean o modifican manualmente desde Firebase Console.
@@ -33,7 +45,7 @@ service cloud.firestore {
     match /user_directory/{userId} {
       // Cualquier usuario autenticado puede leer el directorio limitado.
       // Esta coleccion no debe contener email, active u otros datos internos.
-      allow read: if isAuthenticated();
+      allow read: if isActiveCaller();
       allow write: if false;
     }
   }

@@ -67,6 +67,7 @@ async function ensureLocalUser(userConfig) {
     userRecord = await auth.updateUser(userRecord.uid, {
       displayName: userConfig.displayName,
       password: userConfig.password,
+      disabled: false,
     });
   } catch (error) {
     if (!isFirebaseError(error, 'auth/user-not-found')) {
@@ -158,9 +159,29 @@ async function signInWithPassword(email, password) {
 }
 
 async function callCreateUser(data, idToken) {
+  return callCallable('createUser', data, idToken);
+}
+
+async function callUpdateUser(data, idToken) {
+  return callCallable('updateUser', data, idToken);
+}
+
+async function callSetUserRole(data, idToken) {
+  return callCallable('setUserRole', data, idToken);
+}
+
+async function callSetUserDisabledStatus(data, idToken) {
+  return callCallable('setUserDisabledStatus', data, idToken);
+}
+
+async function callDeleteUser(data, idToken) {
+  return callCallable('deleteUser', data, idToken);
+}
+
+async function callCallable(functionName, data, idToken) {
   const functionsHost = requireEnv('FUNCTIONS_EMULATOR_HOST');
   const url = `http://${functionsHost}/${projectId}/${functionsRegion}/` +
-    'createUser';
+    functionName;
   const headers = {'Content-Type': 'application/json'};
 
   if (idToken) {
@@ -192,7 +213,9 @@ async function callCreateUser(data, idToken) {
 function callableStatusToCode(status) {
   const statusMap = {
     ALREADY_EXISTS: 'already-exists',
+    FAILED_PRECONDITION: 'failed-precondition',
     INVALID_ARGUMENT: 'invalid-argument',
+    NOT_FOUND: 'not-found',
     PERMISSION_DENIED: 'permission-denied',
     UNAUTHENTICATED: 'unauthenticated',
     INTERNAL: 'internal',
@@ -210,6 +233,10 @@ module.exports = {
   assertAdminEmulatorEnv,
   assertCallableEmulatorEnv,
   callCreateUser,
+  callDeleteUser,
+  callSetUserDisabledStatus,
+  callSetUserRole,
+  callUpdateUser,
   deleteLocalUserByEmail,
   ensureLocalUser,
   initializeAdminApp,

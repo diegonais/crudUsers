@@ -50,7 +50,7 @@ class AuthService {
       case 'invalid-email':
         return 'El formato del email no es valido.';
       case 'user-disabled':
-        return 'Esta cuenta fue deshabilitada. Contacta al administrador.';
+        return 'Esta cuenta se encuentra deshabilitada.';
       case 'too-many-requests':
         return 'Hubo demasiados intentos. Espera un momento e intenta nuevamente.';
       case 'network-request-failed':

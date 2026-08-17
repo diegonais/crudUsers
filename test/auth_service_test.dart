@@ -23,5 +23,13 @@ void main() {
         'No se pudo conectar con Firebase. Revisa tu conexion a internet.',
       );
     });
+
+    test('uses a friendly message for disabled accounts', () {
+      final message = AuthService.readableAuthError(
+        FirebaseAuthException(code: 'user-disabled'),
+      );
+
+      expect(message, 'Esta cuenta se encuentra deshabilitada.');
+    });
   });
 }

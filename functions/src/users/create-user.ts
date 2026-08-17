@@ -3,6 +3,8 @@ import {getFirestore, FieldValue} from "firebase-admin/firestore";
 import {logger} from "firebase-functions";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 
+import {assertActiveAdmin} from "./assert-active-admin";
+
 type CreateUserPayload = {
   name?: unknown;
   email?: unknown;
@@ -25,38 +27,18 @@ export const createUser = onCall(
       // onCall crea una Callable Function. Cuando Flutter usa el SDK oficial
       // cloud_functions, Firebase puede adjuntar y verificar la identidad del
       // usuario autenticado sin que Flutter envie manualmente uid, rol o token.
-      if (!request.auth) {
-        throw new HttpsError(
-            "unauthenticated",
-            "Debes iniciar sesion para crear usuarios.",
-        );
-      }
-
-      // No confiamos en que Flutter nos diga que el solicitante es admin.
-      // request.auth.token contiene los Custom Claims del ID Token que Firebase
-      // Authentication verifico para esta Callable Function.
-      if (request.auth.token.role !== "admin") {
-        logger.warn("createUser rejected: caller is not admin", {
-          callerUid: request.auth.uid,
-          callerRole: request.auth.token.role ?? null,
-        });
-
-        throw new HttpsError(
-            "permission-denied",
-            "Solo un administrador puede crear usuarios.",
-        );
-      }
+      const auth = getAuth();
+      await assertActiveAdmin(request, auth, "createUser");
 
       logger.info("createUser caller authorized", {
-        callerUid: request.auth.uid,
-        callerRole: request.auth.token.role,
+        callerUid: request.auth!.uid,
+        callerRole: request.auth!.token.role,
       });
 
       // El cliente no es una frontera de confianza. Las validaciones de Flutter
       // mejoran UX, pero las reglas de negocio y autorizacion deben verificarse
       // nuevamente en el servidor.
       const input = parseCreateUserPayload(request.data);
-      const auth = getAuth();
       const firestore = getFirestore();
       let createdUid: string | undefined;
 

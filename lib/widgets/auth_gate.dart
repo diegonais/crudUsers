@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/login_screen.dart';
 import '../services/auth_service.dart';
-import 'role_gate.dart';
+import 'account_status_gate.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key, AuthService? authService})
@@ -36,7 +36,7 @@ class AuthGate extends StatelessWidget {
           return LoginScreen(authService: authService);
         }
 
-        return RoleGate(user: user, authService: authService);
+        return AccountStatusGate(user: user, authService: authService);
       },
     );
   }
