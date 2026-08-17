@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /user_profiles/{userId} {
+      // El usuario autenticado puede leer solamente su propio perfil interno.
+      // Si intenta leer user_profiles/{uidDeOtraPersona}, la regla rechaza la
+      // operacion y Flutter recibira PERMISSION_DENIED.
+      allow read: if isOwner(userId);
+
+      // En esta fase no escribimos perfiles desde Flutter. Los documentos
+      // iniciales se crean o modifican manualmente desde Firebase Console.
+      allow write: if false;
+    }
+
+    match /user_directory/{userId} {
+      // Cualquier usuario autenticado puede leer el directorio limitado.
+      // Esta coleccion no debe contener email, active u otros datos internos.
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+  }
+}
