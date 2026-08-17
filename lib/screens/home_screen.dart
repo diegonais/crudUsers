@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/role_service.dart';
 import '../services/user_service.dart';
 import 'admin_profiles_screen.dart';
+import 'create_user_screen.dart';
 import 'user_directory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -91,6 +92,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openCreateUser() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CreateUserScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final authEmail = widget.user.email ?? 'Sin email disponible';
@@ -164,6 +171,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Text('Ver usuarios'),
                   ),
                   if (widget.showAdminReadTest) ...[
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _openCreateUser,
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Crear usuario'),
+                    ),
                     const SizedBox(height: 12),
                     OutlinedButton(
                       onPressed: _openAdminProfiles,
