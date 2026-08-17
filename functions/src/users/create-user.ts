@@ -18,9 +18,13 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const createUser = onCall(
     {region: "southamerica-west1"},
     async (request) => {
-    // onCall crea una Callable Function. Cuando Flutter usa el SDK oficial
-    // cloud_functions, Firebase puede adjuntar y verificar la identidad del
-    // usuario autenticado sin que Flutter envie manualmente uid, rol o token.
+      logger.info("createUser called", {
+        callerUid: request.auth?.uid ?? null,
+      });
+
+      // onCall crea una Callable Function. Cuando Flutter usa el SDK oficial
+      // cloud_functions, Firebase puede adjuntar y verificar la identidad del
+      // usuario autenticado sin que Flutter envie manualmente uid, rol o token.
       if (!request.auth) {
         throw new HttpsError(
             "unauthenticated",
@@ -32,11 +36,21 @@ export const createUser = onCall(
       // request.auth.token contiene los Custom Claims del ID Token que Firebase
       // Authentication verifico para esta Callable Function.
       if (request.auth.token.role !== "admin") {
+        logger.warn("createUser rejected: caller is not admin", {
+          callerUid: request.auth.uid,
+          callerRole: request.auth.token.role ?? null,
+        });
+
         throw new HttpsError(
             "permission-denied",
             "Solo un administrador puede crear usuarios.",
         );
       }
+
+      logger.info("createUser caller authorized", {
+        callerUid: request.auth.uid,
+        callerRole: request.auth.token.role,
+      });
 
       // El cliente no es una frontera de confianza. Las validaciones de Flutter
       // mejoran UX, pero las reglas de negocio y autorizacion deben verificarse
@@ -57,6 +71,10 @@ export const createUser = onCall(
         });
 
         createdUid = userRecord.uid;
+        logger.info("createUser new user created", {
+          createdUid,
+          email: input.email,
+        });
 
         // El servidor construye los claims permitidos; no copiamos objetos de
         // claims enviados por Flutter.
@@ -93,7 +111,14 @@ export const createUser = onCall(
           role: input.role,
         });
 
+        if (shouldForceFirestoreFailure(request.data)) {
+          throw new Error("Forced local emulator Firestore failure.");
+        }
+
         await batch.commit();
+        logger.info("createUser Firestore batch committed", {
+          createdUid,
+        });
 
         return {
           success: true,
@@ -114,7 +139,9 @@ export const createUser = onCall(
         // intentamos eliminar esa cuenta como compensacion. Esto NO convierte
         // el proceso en una transaccion distribuida real.
           try {
+            logger.warn("createUser rollback attempted", {createdUid});
             await auth.deleteUser(createdUid);
+            logger.warn("createUser rollback completed", {createdUid});
           } catch (rollbackError) {
             logger.error(
                 "Rollback de createUser fallo; puede existir inconsistencia.",
@@ -203,6 +230,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isAuthEmailAlreadyExistsError(error: unknown): boolean {
   return isRecord(error) && error.code === "auth/email-already-exists";
+}
+
+function shouldForceFirestoreFailure(data: unknown): boolean {
+  return process.env.FUNCTIONS_EMULATOR === "true" &&
+    isRecord(data) &&
+    data.__testForceFirestoreFailure === true;
 }
 
 function safeErrorForLog(error: unknown): Record<string, unknown> {

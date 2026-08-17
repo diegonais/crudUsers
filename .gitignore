@@ -53,3 +53,6 @@ app.*.map.json
 /tools/firebase_admin/*-firebase-adminsdk-*.json
 /tools/firebase_admin/.env
 /tools/firebase_admin/node_modules/
+
+# Firebase Emulator Suite volatile local state. Prefer reproducible seed scripts.
+/emulator-data/

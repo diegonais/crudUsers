@@ -1,13 +1,11 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 
+import '../firebase_emulator_config.dart';
 import '../models/app_role.dart';
 
 class CreateUserResult {
-  const CreateUserResult({
-    required this.uid,
-    required this.email,
-  });
+  const CreateUserResult({required this.uid, required this.email});
 
   final String uid;
   final String email;
@@ -34,9 +32,7 @@ class CreateUserResult {
 
 class FunctionsService {
   FunctionsService({FirebaseFunctions? functions})
-    : _functions = functions ?? _configuredFunctions();
-
-  static const _region = 'southamerica-west1';
+    : _functions = functions ?? configuredFirebaseFunctions();
 
   // firebase_auth -> identidad y sesion del usuario actual.
   // cloud_firestore -> datos leidos en realtime.
@@ -91,30 +87,5 @@ class FunctionsService {
 
     debugPrint('Error no esperado en FunctionsService: $error');
     return 'Ocurrio un error al crear el usuario.';
-  }
-
-  static FirebaseFunctions _configuredFunctions() {
-    final functions = FirebaseFunctions.instanceFor(region: _region);
-
-    // Para probar localmente:
-    // flutter run --dart-define=USE_FUNCTIONS_EMULATOR=true
-    //
-    // Chrome usa localhost. En Android Emulator, cloud_functions mapea
-    // localhost a 10.0.2.2 automaticamente salvo que se desactive.
-    const useEmulator = bool.fromEnvironment('USE_FUNCTIONS_EMULATOR');
-    if (useEmulator) {
-      const host = String.fromEnvironment(
-        'FUNCTIONS_EMULATOR_HOST',
-        defaultValue: 'localhost',
-      );
-      const port = int.fromEnvironment(
-        'FUNCTIONS_EMULATOR_PORT',
-        defaultValue: 5001,
-      );
-
-      functions.useFunctionsEmulator(host, port);
-    }
-
-    return functions;
   }
 }
