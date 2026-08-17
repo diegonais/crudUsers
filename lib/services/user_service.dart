@@ -75,6 +75,15 @@ class UserService {
     });
   }
 
+  Stream<List<AppUser>> watchProfiles() {
+    // Esta lectura administrativa es solo una prueba de autorizacion en Fase 4.
+    // Flutter puede ocultar o mostrar esta pantalla, pero Firestore decide si
+    // realmente permite la consulta leyendo request.auth.token.role.
+    return _profilesCollection.snapshots().map((snapshot) {
+      return snapshot.docs.map(AppUser.fromFirestore).toList(growable: false);
+    });
+  }
+
   static String readableFirestoreError(Object error) {
     if (error is FirebaseException) {
       debugPrint('FirebaseException de Firestore: ${error.code}');

@@ -3,19 +3,29 @@ import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import '../services/role_service.dart';
 import '../services/user_service.dart';
+import 'admin_profiles_screen.dart';
 import 'user_directory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
+    required this.title,
     required this.user,
+    required this.roleInfo,
+    required this.onRefreshRole,
     AuthService? authService,
     UserService? userService,
+    this.showAdminReadTest = false,
   }) : _authService = authService,
        _userService = userService;
 
+  final String title;
   final User user;
+  final RoleInfo roleInfo;
+  final VoidCallback onRefreshRole;
+  final bool showAdminReadTest;
   final AuthService? _authService;
   final UserService? _userService;
 
@@ -73,12 +83,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openAdminProfiles() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminProfilesScreen(userService: _userService),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authEmail = widget.user.email ?? 'Sin email disponible';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi perfil')),
+      appBar: AppBar(title: Text(widget.title)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -96,6 +114,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   _InfoTile(label: 'UID', value: widget.user.uid),
                   const SizedBox(height: 12),
                   _InfoTile(label: 'Email', value: authEmail),
+                  const SizedBox(height: 12),
+                  _InfoTile(
+                    label: 'ROL EN AUTHENTICATION TOKEN',
+                    value: widget.roleInfo.tokenRoleLabel,
+                  ),
+                  const SizedBox(height: 12),
+                  const _MessageBox(
+                    message:
+                        'Este rol proviene del ID Token firmado por Firebase Authentication. Flutter lo usa para decidir que interfaz mostrar; Firestore Security Rules lo verifica independientemente.',
+                  ),
                   const SizedBox(height: 28),
                   Text(
                     'Datos de Firestore',
@@ -134,6 +162,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   OutlinedButton(
                     onPressed: _openDirectory,
                     child: const Text('Ver usuarios'),
+                  ),
+                  if (widget.showAdminReadTest) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _openAdminProfiles,
+                      child: const Text('Admin Profiles'),
+                    ),
+                    const SizedBox(height: 12),
+                    const _MessageBox(
+                      message:
+                          'Prueba admin de solo lectura: esta pantalla no crea, edita ni elimina usuarios. Si alguien fuerza esta UI sin claim admin, Firestore debe rechazar la consulta.',
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: widget.onRefreshRole,
+                    child: const Text('Refrescar token'),
                   ),
                   const SizedBox(height: 12),
                   FilledButton(
@@ -180,7 +225,7 @@ class _ProfileDetails extends StatelessWidget {
         const SizedBox(height: 12),
         _InfoTile(label: 'UID', value: profile.uid),
         const SizedBox(height: 12),
-        _InfoTile(label: 'Rol', value: profile.role),
+        _InfoTile(label: 'ROL EN FIRESTORE', value: profile.role),
         const SizedBox(height: 12),
         _InfoTile(
           label: 'Estado',
@@ -189,7 +234,12 @@ class _ProfileDetails extends StatelessWidget {
         const SizedBox(height: 12),
         _MessageBox(
           message:
-              'El perfil viene de user_profiles/${profile.uid}. Si cambias este documento en Firebase Console, snapshots() emitira otro DocumentSnapshot y esta vista se actualizara.',
+              'Aunque ambos actualmente coincidan, no representan la misma fuente. Firestore role es dato de perfil; Authentication token role es el claim usado para autorizacion.',
+        ),
+        const SizedBox(height: 12),
+        _MessageBox(
+          message:
+              'El perfil viene de user_profiles/${profile.uid}. Si cambias este documento en Firebase Console, snapshots() emitira otro DocumentSnapshot y esta vista se actualizara. Cambiar este campo no cambia el Custom Claim del ID Token.',
         ),
       ],
     );

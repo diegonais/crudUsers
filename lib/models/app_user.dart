@@ -15,10 +15,10 @@ class AppUser {
   final String name;
   final String email;
 
-  // Por ahora el rol almacenado en Firestore es informacion del perfil.
-  // En una fase posterior implementaremos autorizacion real mediante
-  // Firebase Authentication Custom Claims y Security Rules.
-  // No debemos confiar unicamente en este campo para proteger operaciones.
+  // El campo role almacenado en Firestore pertenece al perfil.
+  // Para decisiones de seguridad no confiamos unicamente en el.
+  // El rol autorizado se obtiene del ID Token emitido por Firebase
+  // Authentication mediante un Custom Claim.
   final String role;
   final bool active;
   final DateTime createdAt;

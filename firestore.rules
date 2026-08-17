@@ -6,18 +6,27 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      // request.auth.token contiene los claims del ID Token firmado por
+      // Firebase Authentication. El claim role es la fuente de autorizacion;
+      // no confiamos en el campo role guardado dentro de user_profiles.
+      return isAuthenticated() && request.auth.token.role == "admin";
+    }
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
     match /user_profiles/{userId} {
-      // El usuario autenticado puede leer solamente su propio perfil interno.
-      // Si intenta leer user_profiles/{uidDeOtraPersona}, la regla rechaza la
-      // operacion y Flutter recibira PERMISSION_DENIED.
-      allow read: if isOwner(userId);
+      // El propio usuario puede leer su perfil. Un admin tambien puede leer
+      // perfiles para la prueba administrativa de solo lectura de Fase 4.
+      // Ocultar botones en Flutter no protege datos: esta regla es quien
+      // verifica request.auth.token.role antes de permitir la operacion.
+      allow read: if isOwner(userId) || isAdmin();
 
       // En esta fase no escribimos perfiles desde Flutter. Los documentos
       // iniciales se crean o modifican manualmente desde Firebase Console.
+      // Tampoco habilitamos admin write todavia.
       allow write: if false;
     }
 

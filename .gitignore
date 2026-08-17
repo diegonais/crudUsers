@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase Admin SDK service account keys.
+# Las credenciales administrativas deben vivir fuera del repositorio, pero
+# estos patrones ayudan a evitar commits accidentales de claves privadas.
+/service-account*.json
+/*-firebase-adminsdk-*.json
+/tools/firebase_admin/service-account*.json
+/tools/firebase_admin/*-firebase-adminsdk-*.json
+/tools/firebase_admin/.env
+/tools/firebase_admin/node_modules/

@@ -1,0 +1,16 @@
+{
+  "name": "firebase_admin",
+  "version": "1.0.0",
+  "description": "Herramienta local educativa para asignar Custom Claims de Firebase Auth.",
+  "main": "set-role.js",
+  "scripts": {
+    "set-role": "node set-role.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase-admin": "^14.2.0"
+  }
+}
