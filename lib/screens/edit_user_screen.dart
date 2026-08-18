@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
 import '../services/functions_service.dart';
+import '../services/user_service.dart';
 
 class EditUserScreen extends StatefulWidget {
   const EditUserScreen({
     super.key,
     required this.profile,
     FunctionsService? functionsService,
-  }) : _functionsService = functionsService;
+    UserService? userService,
+  }) : _functionsService = functionsService,
+       _userService = userService;
 
   final AppUser profile;
   final FunctionsService? _functionsService;
+  final UserService? _userService;
 
   @override
   State<EditUserScreen> createState() => _EditUserScreenState();
@@ -28,6 +32,8 @@ class _EditUserScreenState extends State<EditUserScreen> {
   FunctionsService get _functionsService {
     return widget._functionsService ?? FunctionsService();
   }
+
+  UserService get _userService => widget._userService ?? UserService();
 
   @override
   void initState() {
@@ -91,66 +97,37 @@ class _EditUserScreenState extends State<EditUserScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Editar usuario')),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextFormField(
-                      controller: _nameController,
-                      enabled: !_isSubmitting,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _requiredText,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      enabled: !_isSubmitting,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.done,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _emailValidator,
-                      onFieldSubmitted: (_) => _isSubmitting ? null : _submit(),
-                    ),
-                    const SizedBox(height: 16),
-                    _ReadOnlyLine(label: 'Rol', value: widget.profile.role),
-                    const SizedBox(height: 8),
-                    _ReadOnlyLine(
-                      label: 'Estado',
-                      value: widget.profile.active ? 'Activo' : 'Inactivo',
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      onPressed: _isSubmitting ? null : _submit,
-                      icon: _isSubmitting
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save),
-                      label: const Text('Guardar'),
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 16),
-                      _MessageBox(message: _errorMessage!, isError: true),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
+        child: StreamBuilder<AppUser?>(
+          initialData: widget.profile,
+          stream: _userService.watchUserById(widget.profile.uid),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _CenteredMessage(
+                message: UserService.readableFirestoreError(snapshot.error!),
+                isError: true,
+              );
+            }
+
+            final profile = snapshot.data;
+            if (profile == null) {
+              return const _CenteredMessage(
+                message: 'El usuario ya no existe.',
+                showBackButton: true,
+              );
+            }
+
+            return _EditUserFormBody(
+              formKey: _formKey,
+              nameController: _nameController,
+              emailController: _emailController,
+              profile: profile,
+              isSubmitting: _isSubmitting,
+              errorMessage: _errorMessage,
+              onSubmit: _submit,
+              requiredTextValidator: _requiredText,
+              emailValidator: _emailValidator,
+            );
+          },
         ),
       ),
     );
@@ -175,6 +152,132 @@ class _EditUserScreenState extends State<EditUserScreen> {
     }
 
     return null;
+  }
+}
+
+class _EditUserFormBody extends StatelessWidget {
+  const _EditUserFormBody({
+    required this.formKey,
+    required this.nameController,
+    required this.emailController,
+    required this.profile,
+    required this.isSubmitting,
+    required this.errorMessage,
+    required this.onSubmit,
+    required this.requiredTextValidator,
+    required this.emailValidator,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController nameController;
+  final TextEditingController emailController;
+  final AppUser profile;
+  final bool isSubmitting;
+  final String? errorMessage;
+  final VoidCallback onSubmit;
+  final FormFieldValidator<String> requiredTextValidator;
+  final FormFieldValidator<String> emailValidator;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  enabled: !isSubmitting,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: requiredTextValidator,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: emailController,
+                  enabled: !isSubmitting,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: emailValidator,
+                  onFieldSubmitted: (_) => isSubmitting ? null : onSubmit(),
+                ),
+                const SizedBox(height: 16),
+                _ReadOnlyLine(label: 'Rol', value: profile.role),
+                const SizedBox(height: 8),
+                _ReadOnlyLine(
+                  label: 'Estado',
+                  value: profile.active ? 'Activo' : 'Deshabilitado',
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: isSubmitting ? null : onSubmit,
+                  icon: isSubmitting
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
+                  label: const Text('Guardar'),
+                ),
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  _MessageBox(message: errorMessage!, isError: true),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CenteredMessage extends StatelessWidget {
+  const _CenteredMessage({
+    required this.message,
+    this.isError = false,
+    this.showBackButton = false,
+  });
+
+  final String message;
+  final bool isError;
+  final bool showBackButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _MessageBox(message: message, isError: isError),
+              if (showBackButton) ...[
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Volver al listado'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

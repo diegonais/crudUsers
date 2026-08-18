@@ -6,7 +6,6 @@ import '../services/auth_service.dart';
 import '../services/role_service.dart';
 import '../services/user_service.dart';
 import 'admin_profiles_screen.dart';
-import 'create_user_screen.dart';
 import 'user_directory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -87,15 +86,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openAdminProfiles() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AdminProfilesScreen(userService: _userService),
+        builder: (_) => AdminProfilesScreen(
+          userService: _userService,
+          authService: _authService,
+        ),
       ),
     );
-  }
-
-  void _openCreateUser() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const CreateUserScreen()));
   }
 
   @override
@@ -173,19 +169,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (widget.showAdminReadTest) ...[
                     const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: _openCreateUser,
-                      icon: const Icon(Icons.person_add),
-                      label: const Text('Crear usuario'),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
                       onPressed: _openAdminProfiles,
-                      child: const Text('Admin Profiles'),
+                      icon: const Icon(Icons.admin_panel_settings),
+                      label: const Text('Administracion de usuarios'),
                     ),
                     const SizedBox(height: 12),
                     const _MessageBox(
                       message:
-                          'Prueba admin de solo lectura: esta pantalla no crea, edita ni elimina usuarios. Si alguien fuerza esta UI sin claim admin, Firestore debe rechazar la consulta.',
+                          'Esta entrada solo aparece por UX para cuentas con claim admin. Las lecturas y operaciones administrativas vuelven a validarse en Firestore Rules y Cloud Functions.',
                     ),
                   ],
                   const SizedBox(height: 12),

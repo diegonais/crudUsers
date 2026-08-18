@@ -22,7 +22,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   AppRole _selectedRole = AppRole.user;
   bool _isSubmitting = false;
   String? _errorMessage;
-  String? _successMessage;
 
   FunctionsService get _functionsService {
     return widget._functionsService ?? FunctionsService();
@@ -45,23 +44,25 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
-      _successMessage = null;
     });
 
     try {
-      final result = await _functionsService.createUser(
+      await _functionsService.createUser(
         name: _nameController.text,
         email: _emailController.text,
         password: _passwordController.text,
         role: _selectedRole,
       );
 
+      _nameController.clear();
+      _emailController.clear();
       _passwordController.clear();
 
       if (!mounted) return;
-      setState(() {
-        _successMessage = 'Usuario creado: ${result.email}';
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario creado correctamente.')),
+      );
+      Navigator.of(context).pop(true);
     } catch (error) {
       _passwordController.clear();
 
@@ -95,6 +96,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   children: [
                     TextFormField(
                       controller: _nameController,
+                      enabled: !_isSubmitting,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Nombre',
@@ -105,6 +107,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
+                      enabled: !_isSubmitting,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
@@ -116,6 +119,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
+                      enabled: !_isSubmitting,
                       obscureText: true,
                       textInputAction: TextInputAction.done,
                       decoration: const InputDecoration(
@@ -165,10 +169,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
                       _MessageBox(message: _errorMessage!, isError: true),
-                    ],
-                    if (_successMessage != null) ...[
-                      const SizedBox(height: 16),
-                      _MessageBox(message: _successMessage!),
                     ],
                   ],
                 ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/app_role.dart';
 import '../models/app_user.dart';
 import '../services/functions_service.dart';
+import '../services/user_service.dart';
 
 class ChangeUserRoleScreen extends StatefulWidget {
   const ChangeUserRoleScreen({
@@ -10,11 +11,14 @@ class ChangeUserRoleScreen extends StatefulWidget {
     required this.profile,
     this.isCurrentUser = false,
     FunctionsService? functionsService,
-  }) : _functionsService = functionsService;
+    UserService? userService,
+  }) : _functionsService = functionsService,
+       _userService = userService;
 
   final AppUser profile;
   final bool isCurrentUser;
   final FunctionsService? _functionsService;
+  final UserService? _userService;
 
   @override
   State<ChangeUserRoleScreen> createState() => _ChangeUserRoleScreenState();
@@ -28,6 +32,8 @@ class _ChangeUserRoleScreenState extends State<ChangeUserRoleScreen> {
   FunctionsService get _functionsService {
     return widget._functionsService ?? FunctionsService();
   }
+
+  UserService get _userService => widget._userService ?? UserService();
 
   @override
   void initState() {
@@ -125,73 +131,160 @@ class _ChangeUserRoleScreenState extends State<ChangeUserRoleScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Cambiar rol')),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _ReadOnlyLine(label: 'Usuario', value: widget.profile.name),
-                  const SizedBox(height: 8),
-                  _ReadOnlyLine(label: 'Email', value: widget.profile.email),
-                  const SizedBox(height: 8),
-                  _ReadOnlyLine(
-                    label: 'Rol actual',
-                    value: widget.profile.role,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<AppRole>(
-                    initialValue: _selectedRole,
-                    decoration: const InputDecoration(
-                      labelText: 'Nuevo rol',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: AppRole.user,
-                        child: Text('user'),
-                      ),
-                      DropdownMenuItem(
-                        value: AppRole.admin,
-                        child: Text('admin'),
-                      ),
-                    ],
-                    onChanged: canSubmit
-                        ? (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _selectedRole = value;
-                            });
-                          }
-                        : null,
-                  ),
-                  if (widget.isCurrentUser) ...[
-                    const SizedBox(height: 16),
-                    const _MessageBox(
-                      message:
-                          'La UI bloquea este cambio por conveniencia; la Function tambien lo rechaza como seguridad real.',
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: canSubmit ? _submit : null,
-                    icon: _isSubmitting
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.verified_user),
-                    label: const Text('Guardar rol'),
-                  ),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 16),
-                    _MessageBox(message: _errorMessage!, isError: true),
-                  ],
+        child: StreamBuilder<AppUser?>(
+          initialData: widget.profile,
+          stream: _userService.watchUserById(widget.profile.uid),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _CenteredMessage(
+                message: UserService.readableFirestoreError(snapshot.error!),
+                isError: true,
+              );
+            }
+
+            final profile = snapshot.data;
+            if (profile == null) {
+              return const _CenteredMessage(
+                message: 'El usuario ya no existe.',
+                showBackButton: true,
+              );
+            }
+
+            return _ChangeRoleBody(
+              profile: profile,
+              selectedRole: _selectedRole,
+              canSubmit: canSubmit,
+              isCurrentUser: widget.isCurrentUser,
+              isSubmitting: _isSubmitting,
+              errorMessage: _errorMessage,
+              onRoleChanged: (value) {
+                setState(() {
+                  _selectedRole = value;
+                });
+              },
+              onSubmit: _submit,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ChangeRoleBody extends StatelessWidget {
+  const _ChangeRoleBody({
+    required this.profile,
+    required this.selectedRole,
+    required this.canSubmit,
+    required this.isCurrentUser,
+    required this.isSubmitting,
+    required this.errorMessage,
+    required this.onRoleChanged,
+    required this.onSubmit,
+  });
+
+  final AppUser profile;
+  final AppRole selectedRole;
+  final bool canSubmit;
+  final bool isCurrentUser;
+  final bool isSubmitting;
+  final String? errorMessage;
+  final ValueChanged<AppRole> onRoleChanged;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ReadOnlyLine(label: 'Usuario', value: profile.name),
+              const SizedBox(height: 8),
+              _ReadOnlyLine(label: 'Email', value: profile.email),
+              const SizedBox(height: 8),
+              _ReadOnlyLine(label: 'Rol actual', value: profile.role),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<AppRole>(
+                initialValue: selectedRole,
+                decoration: const InputDecoration(
+                  labelText: 'Nuevo rol',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: AppRole.user, child: Text('user')),
+                  DropdownMenuItem(value: AppRole.admin, child: Text('admin')),
                 ],
+                onChanged: canSubmit
+                    ? (value) {
+                        if (value == null) return;
+                        onRoleChanged(value);
+                      }
+                    : null,
               ),
-            ),
+              if (isCurrentUser) ...[
+                const SizedBox(height: 16),
+                const _MessageBox(
+                  message:
+                      'La UI bloquea este cambio por conveniencia; la Function tambien lo rechaza como seguridad real.',
+                ),
+              ],
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: canSubmit ? onSubmit : null,
+                icon: isSubmitting
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.verified_user),
+                label: const Text('Guardar rol'),
+              ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: 16),
+                _MessageBox(message: errorMessage!, isError: true),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CenteredMessage extends StatelessWidget {
+  const _CenteredMessage({
+    required this.message,
+    this.isError = false,
+    this.showBackButton = false,
+  });
+
+  final String message;
+  final bool isError;
+  final bool showBackButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _MessageBox(message: message, isError: isError),
+              if (showBackButton) ...[
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Volver al listado'),
+                ),
+              ],
+            ],
           ),
         ),
       ),

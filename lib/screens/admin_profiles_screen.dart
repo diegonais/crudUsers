@@ -2,9 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
+import '../services/auth_service.dart';
 import '../services/functions_service.dart';
 import '../services/user_service.dart';
 import 'change_user_role_screen.dart';
+import 'create_user_screen.dart';
 import 'edit_user_screen.dart';
 
 class AdminProfilesScreen extends StatefulWidget {
@@ -12,11 +14,17 @@ class AdminProfilesScreen extends StatefulWidget {
     super.key,
     UserService? userService,
     FunctionsService? functionsService,
+    AuthService? authService,
+    String? currentUid,
   }) : _userService = userService,
-       _functionsService = functionsService;
+       _functionsService = functionsService,
+       _authService = authService,
+       _currentUid = currentUid;
 
   final UserService? _userService;
   final FunctionsService? _functionsService;
+  final AuthService? _authService;
+  final String? _currentUid;
 
   @override
   State<AdminProfilesScreen> createState() => _AdminProfilesScreenState();
@@ -24,18 +32,36 @@ class AdminProfilesScreen extends StatefulWidget {
 
 class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
   String? _busyUid;
+  bool _isSigningOut = false;
 
   UserService get _userService => widget._userService ?? UserService();
   FunctionsService get _functionsService {
     return widget._functionsService ?? FunctionsService();
   }
 
+  AuthService get _authService => widget._authService ?? AuthService();
+
   @override
   Widget build(BuildContext context) {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final currentUid =
+        widget._currentUid ?? FirebaseAuth.instance.currentUser?.uid;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Profiles')),
+      appBar: AppBar(
+        title: const Text('Administracion de usuarios'),
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesion',
+            onPressed: _isSigningOut ? null : _signOut,
+            icon: _isSigningOut
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.logout),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: StreamBuilder<List<AppUser>>(
           stream: _userService.watchProfiles(),
@@ -51,101 +77,17 @@ class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
               );
             }
 
-            final profiles = snapshot.data ?? const <AppUser>[];
-
-            if (profiles.isEmpty) {
-              return const _Message(
-                text: 'Todavia no hay documentos en user_profiles.',
+            final profiles = [...snapshot.data ?? const <AppUser>[]]
+              ..sort(
+                (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
               );
-            }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: profiles.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final profile = profiles[index];
-                final isCurrentUser = profile.uid == currentUid;
-                final isBusy = _busyUid == profile.uid;
-
-                return ListTile(
-                  title: Text(profile.name),
-                  subtitle: Text(
-                    '${profile.email}\nrole: ${profile.role} | Estado: ${profile.active ? 'Activo' : 'Deshabilitado'}',
-                  ),
-                  isThreeLine: true,
-                  trailing: isBusy
-                      ? const SizedBox.square(
-                          dimension: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : PopupMenuButton<_AdminProfileAction>(
-                          onSelected: (action) {
-                            switch (action) {
-                              case _AdminProfileAction.edit:
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        EditUserScreen(profile: profile),
-                                  ),
-                                );
-                              case _AdminProfileAction.changeRole:
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => ChangeUserRoleScreen(
-                                      profile: profile,
-                                      isCurrentUser: isCurrentUser,
-                                    ),
-                                  ),
-                                );
-                              case _AdminProfileAction.toggleDisabled:
-                                _confirmAndSetDisabled(profile);
-                              case _AdminProfileAction.delete:
-                                _confirmAndDelete(profile);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: _AdminProfileAction.edit,
-                              child: ListTile(
-                                leading: Icon(Icons.edit),
-                                title: Text('Editar'),
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: _AdminProfileAction.changeRole,
-                              enabled: !isCurrentUser,
-                              child: const ListTile(
-                                leading: Icon(Icons.verified_user),
-                                title: Text('Cambiar rol'),
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: _AdminProfileAction.toggleDisabled,
-                              enabled: !isCurrentUser,
-                              child: ListTile(
-                                leading: Icon(
-                                  profile.active
-                                      ? Icons.block
-                                      : Icons.check_circle_outline,
-                                ),
-                                title: Text(
-                                  profile.active ? 'Deshabilitar' : 'Habilitar',
-                                ),
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: _AdminProfileAction.delete,
-                              enabled: !isCurrentUser,
-                              child: const ListTile(
-                                leading: Icon(Icons.delete_forever),
-                                title: Text('Eliminar usuario'),
-                              ),
-                            ),
-                          ],
-                        ),
-                );
-              },
+            return AdminProfilesList(
+              profiles: profiles,
+              currentUid: currentUid,
+              busyUid: _busyUid,
+              onCreateUser: _openCreateUser,
+              onActionSelected: _handleProfileAction,
             );
           },
         ),
@@ -153,11 +95,63 @@ class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
     );
   }
 
+  Future<void> _signOut() async {
+    setState(() {
+      _isSigningOut = true;
+    });
+
+    try {
+      await _authService.signOut();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSigningOut = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openCreateUser() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CreateUserScreen()));
+    // No refrescamos manualmente el listado: watchProfiles() usa snapshots()
+    // y recibira el cambio escrito por Cloud Functions.
+  }
+
+  void _handleProfileAction(AdminProfileActionSelection selection) {
+    final action = selection.action;
+    final profile = selection.profile;
+    final isCurrentUser =
+        profile.uid ==
+        (widget._currentUid ?? FirebaseAuth.instance.currentUser?.uid);
+
+    switch (action) {
+      case AdminProfileAction.edit:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => EditUserScreen(profile: profile)),
+        );
+      case AdminProfileAction.changeRole:
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ChangeUserRoleScreen(
+              profile: profile,
+              isCurrentUser: isCurrentUser,
+            ),
+          ),
+        );
+      case AdminProfileAction.toggleDisabled:
+        _confirmAndSetDisabled(profile);
+      case AdminProfileAction.delete:
+        _confirmAndDelete(profile);
+    }
+  }
+
   Future<void> _confirmAndSetDisabled(AppUser profile) async {
     final disabled = profile.active;
     final message = disabled
-        ? 'El usuario no podra iniciar nuevas sesiones ni acceder normalmente a la aplicacion.'
-        : 'La cuenta podra iniciar sesion y acceder normalmente nuevamente.';
+        ? 'Esta cuenta dejara de poder utilizar normalmente la aplicacion. Deshabilitar es reversible y conserva sus datos.'
+        : 'La cuenta recuperara el acceso. Sus datos se mantienen conservados.';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -172,7 +166,7 @@ class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Continuar'),
+              child: Text(disabled ? 'Deshabilitar' : 'Habilitar'),
             ),
           ],
         );
@@ -199,8 +193,8 @@ class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
           content: Text(
             result.changed
                 ? (result.disabled
-                      ? 'Cuenta deshabilitada.'
-                      : 'Cuenta habilitada.')
+                      ? 'Usuario deshabilitado.'
+                      : 'Usuario habilitado.')
                 : 'No habia cambios de estado para guardar.',
           ),
         ),
@@ -284,7 +278,227 @@ class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
   }
 }
 
-enum _AdminProfileAction { edit, changeRole, toggleDisabled, delete }
+enum AdminProfileAction { edit, changeRole, toggleDisabled, delete }
+
+class AdminProfileActionSelection {
+  const AdminProfileActionSelection({
+    required this.action,
+    required this.profile,
+  });
+
+  final AdminProfileAction action;
+  final AppUser profile;
+}
+
+class AdminProfilesList extends StatelessWidget {
+  const AdminProfilesList({
+    super.key,
+    required this.profiles,
+    required this.currentUid,
+    required this.busyUid,
+    required this.onCreateUser,
+    required this.onActionSelected,
+  });
+
+  final List<AppUser> profiles;
+  final String? currentUid;
+  final String? busyUid;
+  final VoidCallback onCreateUser;
+  final ValueChanged<AdminProfileActionSelection> onActionSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: FilledButton.icon(
+            onPressed: onCreateUser,
+            icon: const Icon(Icons.person_add),
+            label: const Text('Crear usuario'),
+          ),
+        ),
+        Expanded(
+          child: profiles.isEmpty
+              ? const _Message(text: 'No hay usuarios disponibles.')
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  itemCount: profiles.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final profile = profiles[index];
+
+                    return _AdminProfileTile(
+                      profile: profile,
+                      isCurrentUser: profile.uid == currentUid,
+                      isBusy: busyUid == profile.uid,
+                      onSelected: (action) {
+                        onActionSelected(
+                          AdminProfileActionSelection(
+                            action: action,
+                            profile: profile,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminProfileTile extends StatelessWidget {
+  const _AdminProfileTile({
+    required this.profile,
+    required this.isCurrentUser,
+    required this.isBusy,
+    required this.onSelected,
+  });
+
+  final AppUser profile;
+  final bool isCurrentUser;
+  final bool isBusy;
+  final ValueChanged<AdminProfileAction> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      title: Text(profile.name),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(profile.email),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InfoChip(
+                  icon: Icons.verified_user_outlined,
+                  label: _roleLabel(profile.role),
+                ),
+                _InfoChip(
+                  icon: profile.active
+                      ? Icons.check_circle_outline
+                      : Icons.block,
+                  label: profile.active ? 'Activo' : 'Deshabilitado',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      trailing: isBusy
+          ? const SizedBox.square(
+              dimension: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : PopupMenuButton<AdminProfileAction>(
+              tooltip: 'Acciones de usuario',
+              onSelected: onSelected,
+              itemBuilder: (context) => _menuItems(context),
+            ),
+    );
+  }
+
+  List<PopupMenuEntry<AdminProfileAction>> _menuItems(BuildContext context) {
+    final deleteColor = Theme.of(context).colorScheme.error;
+
+    final items = <PopupMenuEntry<AdminProfileAction>>[
+      const PopupMenuItem(
+        value: AdminProfileAction.edit,
+        child: _MenuAction(icon: Icons.edit, label: 'Editar'),
+      ),
+    ];
+
+    // Ocultamos acciones sobre la cuenta actual por UX, pero la seguridad real
+    // sigue viviendo en las Cloud Functions, que vuelven a rechazar esos casos.
+    if (!isCurrentUser) {
+      items
+        ..add(
+          const PopupMenuItem(
+            value: AdminProfileAction.changeRole,
+            child: _MenuAction(icon: Icons.verified_user, label: 'Cambiar rol'),
+          ),
+        )
+        ..add(
+          PopupMenuItem(
+            value: AdminProfileAction.toggleDisabled,
+            child: _MenuAction(
+              icon: profile.active ? Icons.block : Icons.check_circle_outline,
+              label: profile.active ? 'Deshabilitar' : 'Habilitar',
+            ),
+          ),
+        )
+        ..add(const PopupMenuDivider())
+        ..add(
+          PopupMenuItem(
+            value: AdminProfileAction.delete,
+            child: _MenuAction(
+              icon: Icons.delete_forever,
+              label: 'Eliminar',
+              color: deleteColor,
+            ),
+          ),
+        );
+    }
+
+    return items;
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Admin';
+      case 'user':
+        return 'User';
+      default:
+        return role;
+    }
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+class _MenuAction extends StatelessWidget {
+  const _MenuAction({required this.icon, required this.label, this.color});
+
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(width: 12),
+        Text(label, style: TextStyle(color: color)),
+      ],
+    );
+  }
+}
 
 class _Message extends StatelessWidget {
   const _Message({required this.text, this.isError = false});
