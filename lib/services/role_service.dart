@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
 import '../models/app_role.dart';
 
@@ -38,15 +37,6 @@ class RoleService {
     final tokenResult = await user.getIdTokenResult(forceRefresh);
     final rawRole = tokenResult.claims?['role'];
     final role = appRoleFromClaim(rawRole);
-
-    if (forceRefresh) {
-      // forceRefresh=true pide a Firebase un token nuevo para comprobar de
-      // inmediato cambios de Custom Claims hechos desde un entorno admin.
-      // No conviene refrescar en cada build porque genera trabajo innecesario.
-      debugPrint('Token actualizado con forceRefresh=true.');
-    }
-
-    debugPrint('Rol obtenido desde ID Token: ${role.value}');
 
     return RoleInfo(
       role: role,

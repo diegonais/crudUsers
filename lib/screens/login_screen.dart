@@ -53,9 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       // No navegamos manualmente a Home. Si Firebase acepta las credenciales,
       // authStateChanges() emitira un User y AuthGate cambiara la pantalla.
-    } on FirebaseAuthException catch (exception, stackTrace) {
+    } on FirebaseAuthException catch (exception) {
       debugPrint('FirebaseAuthException al iniciar sesion: ${exception.code}');
-      debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted) return;
       setState(() {

@@ -43,7 +43,6 @@ class _RoleGateState extends State<RoleGate> {
   }
 
   Future<RoleInfo> _loadRole({required bool forceRefresh}) {
-    debugPrint('Usuario autenticado: ${widget.user.uid}');
     return _roleService.getRoleFromToken(
       widget.user,
       forceRefresh: forceRefresh,

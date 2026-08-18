@@ -7,7 +7,6 @@ crea usuarios reales.
 ## Iniciar emuladores
 
 ```powershell
-$env:PATH="C:\Users\USUARIO\AppData\Local\nvm\v22.23.1;$env:PATH"
 firebase emulators:start --only auth,firestore,functions
 ```
 
@@ -33,20 +32,18 @@ El seed aborta si no detecta `FIREBASE_AUTH_EMULATOR_HOST` y
 PowerShell:
 
 ```powershell
-$env:PATH="C:\Users\USUARIO\AppData\Local\nvm\v22.23.1;$env:PATH"
 $env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"
 $env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"
-$env:GCLOUD_PROJECT="crudusers-4dba6"
+$env:FUNCTIONS_EMULATOR_HOST="127.0.0.1:5001"
 node tools\emulator\seed-emulator-admin.js
 ```
 
 CMD:
 
 ```bat
-set PATH=C:\Users\USUARIO\AppData\Local\nvm\v22.23.1;%PATH%
 set FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
 set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
-set GCLOUD_PROJECT=crudusers-4dba6
+set FUNCTIONS_EMULATOR_HOST=127.0.0.1:5001
 node tools\emulator\seed-emulator-admin.js
 ```
 
@@ -57,6 +54,11 @@ email: admin@test.local
 password: AdminLocal123!
 displayName: Admin Local
 claim: { role: "admin" }
+
+email: normal@test.local
+password: NormalLocal123!
+displayName: Usuario Local
+claim: { role: "user" }
 ```
 
 El script es idempotente: si el usuario ya existe, actualiza displayName,
@@ -67,11 +69,9 @@ password de prueba, Custom Claim y documentos locales.
 Con los emuladores corriendo:
 
 ```powershell
-$env:PATH="C:\Users\USUARIO\AppData\Local\nvm\v22.23.1;$env:PATH"
 $env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"
 $env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"
 $env:FUNCTIONS_EMULATOR_HOST="127.0.0.1:5001"
-$env:GCLOUD_PROJECT="crudusers-4dba6"
 node tools\emulator\test-create-user.js
 ```
 
@@ -94,13 +94,12 @@ El runner verifica:
 Con los emuladores corriendo y el admin sembrado:
 
 ```powershell
-flutter test integration_test\create_user_emulator_test.dart -d emulator-5554 --dart-define=USE_FIREBASE_EMULATORS=true
+flutter test integration_test --dart-define=USE_FIREBASE_EMULATORS=true
 ```
 
-Esta prueba inicializa Firebase desde Flutter, conecta Auth/Firestore/Functions
-a los emuladores, inicia sesion con `admin@test.local`, llama
-`FunctionsService.createUser` y espera que `UserService.watchUsers()` reciba el
-nuevo usuario por `snapshots()`.
+Estas pruebas inicializan Firebase desde Flutter, conectan
+Auth/Firestore/Functions a los emuladores, inician sesion con cuentas `.local`
+y validan create, update, role, disabled, delete y snapshots realtime.
 
 En Android debug se habilita `android:usesCleartextTraffic="true"` porque los
 emuladores locales usan HTTP. El manifiesto principal/release no se modifica.

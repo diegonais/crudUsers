@@ -50,9 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
       await _authService.signOut();
       // No navegamos manualmente a Login. signOut() hace que Firebase Auth
       // emita User = null, y AuthGate reconstruye la interfaz desde ese estado.
-    } on FirebaseAuthException catch (exception, stackTrace) {
+    } on FirebaseAuthException catch (exception) {
       debugPrint('FirebaseAuthException al cerrar sesion: ${exception.code}');
-      debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted) return;
       setState(() {
