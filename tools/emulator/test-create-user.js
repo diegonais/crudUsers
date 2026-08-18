@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const assert = require('assert/strict');
+const path = require('path');
 const {
   admin,
   assertCallableEmulatorEnv,
@@ -48,7 +49,12 @@ const testUsers = {
     email: 'rollback@test.local',
     password: 'Rollback123!',
     role: 'user',
-    __testForceFirestoreFailure: true,
+  },
+  extraField: {
+    name: 'Extra Field',
+    email: 'extra-field@test.local',
+    password: 'ExtraField123!',
+    role: 'user',
   },
 };
 
@@ -75,7 +81,8 @@ async function main() {
   await testDuplicateEmailFails(adminToken);
   await testInvalidRoleFails(adminToken);
   await testInvalidPasswordFails(adminToken);
-  await testRollbackDeletesOnlyNewUser(adminToken);
+  await testUnexpectedFieldFails(adminToken);
+  await testRollbackDeletesOnlyNewUser();
 
   console.log('Todas las pruebas locales de createUser pasaron.');
 }
@@ -183,11 +190,37 @@ async function testInvalidPasswordFails(adminToken) {
   console.log('OK password invalida falla sin perfil Firestore.');
 }
 
-async function testRollbackDeletesOnlyNewUser(adminToken) {
+async function testUnexpectedFieldFails(adminToken) {
+  await expectCallableCode(
+    () => callCreateUser({
+      ...testUsers.extraField,
+      callerRole: 'admin',
+    }, adminToken),
+    'invalid-argument',
+  );
+  await expectNoAuthUser(testUsers.extraField.email);
+  console.log('OK campos fuera de alcance son rechazados.');
+}
+
+async function testRollbackDeletesOnlyNewUser() {
+  const createUserModulePath = path.resolve(
+    __dirname,
+    '../../functions/lib/users/create-user.js',
+  );
+  const {createUserCore} = require(createUserModulePath);
   const pedroBefore = await admin.auth().getUserByEmail(testUsers.pedro.email);
 
   await expectCallableCode(
-    () => callCreateUser(testUsers.rollback, adminToken),
+    () => createUserCore(
+      testUsers.rollback,
+      {
+        auth: admin.auth(),
+        firestore: admin.firestore(),
+        commitFirestoreUserCreate: async () => {
+          throw new Error('Forced internal Firestore failure.');
+        },
+      },
+    ),
     'internal',
   );
   await expectNoAuthUser(testUsers.rollback.email);
