@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1025006753255",
-    "project_id": "crudusers-4dba6",
-    "storage_bucket": "crudusers-4dba6.firebasestorage.app"
+    "project_number": "YOUR_PROJECT_NUMBER",
+    "project_id": "your-firebase-project-id",
+    "storage_bucket": "your-firebase-project-id.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1025006753255:android:6de6828d2d6ea53d9a9942",
+        "mobilesdk_app_id": "YOUR_ANDROID_APP_ID",
         "android_client_info": {
           "package_name": "com.example.crudusers"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDjBr5NZs1DC8vyUnkagT3ziB5ZlRGoXS4"
+          "current_key": "YOUR_ANDROID_API_KEY"
         }
       ],
       "services": {

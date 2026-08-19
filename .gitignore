@@ -44,6 +44,15 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Firebase project configuration generated locally by Firebase CLI/FlutterFire.
+# Each developer should generate these files for their own Firebase project.
+/.firebaserc
+/lib/firebase_options.dart
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
+/macos/Runner/GoogleService-Info.plist
+/.firebase/
+
 # Firebase Admin SDK service account keys.
 # Las credenciales administrativas deben vivir fuera del repositorio, pero
 # estos patrones ayudan a evitar commits accidentales de claves privadas.

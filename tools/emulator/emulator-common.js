@@ -6,7 +6,10 @@ const requireFromFunctions = createRequire(
 );
 const admin = requireFromFunctions('firebase-admin');
 
-const projectId = 'crudusers-4dba6';
+const projectId =
+  process.env.GCLOUD_PROJECT ||
+  process.env.FIREBASE_PROJECT_ID ||
+  'demo-crudusers';
 const functionsRegion = 'southamerica-west1';
 
 const users = {

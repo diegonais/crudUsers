@@ -34,6 +34,45 @@ Firebase CLI 15.27.0
 Tambien se usa FlutterFire CLI cuando se necesita regenerar configuracion de
 Firebase para otro proyecto.
 
+## Configuracion Firebase local
+
+Este repositorio no incluye una instancia Firebase personal. Cada desarrollador
+debe crear o elegir su propio proyecto Firebase y generar estos archivos en su
+maquina:
+
+```text
+.firebaserc
+lib/firebase_options.dart
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+```
+
+Esos archivos estan ignorados por Git porque apuntan a un proyecto Firebase
+concreto. El repositorio solo conserva ejemplos:
+
+```text
+.firebaserc.example
+lib/firebase_options.example.dart
+android/app/google-services.example.json
+```
+
+Despues de clonar, configura tu propio proyecto:
+
+```bash
+firebase login
+firebase use --add
+flutterfire configure
+```
+
+Si FlutterFire agrega una seccion `flutter` con IDs locales dentro de
+`firebase.json`, tratala como metadata de tu maquina y no la subas al repo
+publico. El `firebase.json` versionado debe conservar solo reglas, Functions y
+emuladores.
+
+En Firebase Console habilita Authentication con Email/Password y crea Cloud
+Firestore. Para desplegar Cloud Functions necesitas un proyecto con plan Blaze.
+
 ## Arquitectura
 
 La arquitectura es deliberadamente sencilla:
@@ -178,7 +217,7 @@ Emulator UI     4000
 Iniciar emuladores:
 
 ```bash
-firebase emulators:start --only auth,firestore,functions
+firebase emulators:start --project demo-crudusers --only auth,firestore,functions
 ```
 
 UI:
@@ -210,10 +249,10 @@ cd functions
 npm install
 ```
 
-`lib/firebase_options.dart` y `android/app/google-services.json` estan
-versionados como configuracion cliente normal. Vuelve a ejecutar
-`flutterfire configure` solo si cambias de proyecto Firebase o agregas nuevas
-apps/plataformas.
+Antes de ejecutar Flutter necesitas generar `lib/firebase_options.dart` con
+`flutterfire configure`. Para Android tambien debe existir
+`android/app/google-services.json`, que FlutterFire genera si registras la app
+Android durante la configuracion.
 
 ## Ejecucion local
 
@@ -231,6 +270,30 @@ flutter run --dart-define=USE_FIREBASE_EMULATORS=true
 
 Sin `USE_FIREBASE_EMULATORS=true`, Flutter usa la configuracion normal de
 Firebase. No ejecutes seeds ni pruebas destructivas contra produccion.
+
+## Despliegue opcional
+
+Cuando ya tengas tu propio proyecto Firebase configurado:
+
+```bash
+firebase deploy --only firestore:rules,functions
+```
+
+Para asignar el primer admin en un entorno real, usa el script local con una
+Service Account fuera del repositorio:
+
+```bash
+cd tools/firebase_admin
+npm install
+GOOGLE_APPLICATION_CREDENTIALS=/ruta/segura/service-account.json node set-role.js tu@email.com admin
+```
+
+En PowerShell:
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\ruta\segura\service-account.json"
+node set-role.js tu@email.com admin
+```
 
 ## Pruebas
 

@@ -41,10 +41,10 @@ Firebase.initializeApp()
 
 ## Proyecto Firebase
 
-El proyecto Firebase usado por esta app es:
+El proyecto Firebase usado por cada clon debe ser propio:
 
 ```text
-crudusers-4dba6
+your-firebase-project-id
 ```
 
 Ese `projectId` aparece en:

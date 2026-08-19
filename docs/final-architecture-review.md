@@ -33,7 +33,7 @@ Se revisaron los elementos pedidos:
   compensaciones.
 - `firestore.rules`: reglas de acceso directo desde Flutter Client SDK.
 - `firebase.json`: configuracion de Firestore, Functions y emuladores.
-- `.firebaserc`: proyecto `crudusers-4dba6`.
+- `.firebaserc`: archivo local generado por cada desarrollador.
 - `tools/`: scripts locales de seed, pruebas de emulador y herramienta Admin
   para Custom Claims.
 - `test/`: pruebas unitarias de servicios/configuracion/UI.
